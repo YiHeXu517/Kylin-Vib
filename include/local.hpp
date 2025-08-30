@@ -1,5 +1,5 @@
 #pragma once
-#include "util.h"
+#include "util.hpp"
 template<typename ArrType>
 ArrType to_matrix(char op, size_t dim)
 {

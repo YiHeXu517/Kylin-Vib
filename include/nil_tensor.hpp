@@ -88,10 +88,30 @@ namespace Nil
             }
             return *this;
         }
-        Tensor<T,N> operator+(Tensor<T,N> const & r)
+        Tensor<T,N> operator+(Tensor<T,N> const & r) const
         {
             Tensor<T,N> res(*this);
             res += r;
+            return res;
+        }
+        Tensor<T,N> & operator-=(Tensor<T,N> const & r)
+        {
+            T ones(-1.0);
+            size_t data_size = data.size();
+            if constexpr(is_same<T,double>::value)
+            {
+                cblas_daxpy(data_size,ones,r.data.data(),1,data.data(),1);
+            }
+            else
+            {
+                cblas_zaxpy(data_size,&ones,r.data.data(),1,data.data(),1);
+            }
+            return *this;
+        }
+        Tensor<T,N> operator-(Tensor<T,N> const & r) const
+        {
+            Tensor<T,N> res(*this);
+            res -= r;
             return res;
         }
         Tensor<T,N> & operator*=(double val)
@@ -107,7 +127,7 @@ namespace Nil
             }
             return *this;
         }
-        Tensor<T,N> operator*(T const & val)
+        Tensor<T,N> operator*(T const & val) const
         {
             size_t data_size = data.size();
             Tensor<T,N> res(*this);
@@ -118,6 +138,34 @@ namespace Nil
             else
             {
                 cblas_zscal(data_size,&val,res.data.data(),1);
+            }
+            return res;
+        }
+        Tensor<T,N> & operator/=(double val)
+        {
+            size_t data_size = data.size();
+            if constexpr(is_same<T,double>::value)
+            {
+                cblas_dscal(data_size,1/val,data.data(),1);
+            }
+            else
+            {
+                cblas_zdscal(data_size,1/val,data.data(),1);
+            }
+            return *this;
+        }
+        Tensor<T,N> operator/(T const & val) const
+        {
+            size_t data_size = data.size();
+            Tensor<T,N> res(*this);
+            T valc(1.0/val);
+            if constexpr(is_same<T,double>::value)
+            {
+                cblas_dscal(data_size,valc,res.data.data(),1);
+            }
+            else
+            {
+                cblas_zscal(data_size,&valc,res.data.data(),1);
             }
             return res;
         }
@@ -160,11 +208,11 @@ namespace Nil
             size_t data_size = data.size();
             if constexpr(is_same<T,double>::value)
             {
-                res = cblas_dnrm2(data_size,res.data.data(),1);
+                res = cblas_dnrm2(data_size,r.data.data(),1);
             }
             else
             {
-                res = cblas_dznrm2(data_size,res.data.data(),1);
+                res = cblas_dznrm2(data_size,r.data.data(),1);
             }
             return res;
         }

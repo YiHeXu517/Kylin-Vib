@@ -1,17 +1,18 @@
-/* DMRG implementation */
-
 #pragma once
-
-#include <deque>
-#include "dense_mpo.h"
-//#include "timer.h"
-
-namespace KylinVib
+#include "nil_mpo.hpp"
+namespace Nil
 {
-    template<typename T> class DMRG
+    template<typename T> struct TDVP
     {
+        MPO<T> ham_;
+        MPS<T> state_;
+        vector<MPS<T>> snaps_;
+        double tol_;
+        size_t MaxBond_;
+        vector<Tensor<T,3>> envl_;
+        vector<Tensor<T,3>> envr_;
         public:
-        DMRG(MPO<T> const & op, MPS<T> const & s, double tol = 1e-8, size_t maxdim = 20)
+        TDVP(MPO<T> const & op, MPS<T> const & s, double tol = 1e-8, size_t maxdim = 20)
         : ham_(op), state_(s), tol_(tol), MaxBond_(maxdim)
         {
             Tensor<T,3> edges({1,1,1});
@@ -24,7 +25,7 @@ namespace KylinVib
                 envr_.push_back(MPO<T>::sweep(envr_.back(),ham_[i],state_[i],state_[i],'l'));
             }
         }
-        ~DMRG() = default;
+        ~TDVP() = default;
 
         // Hv
         static Tensor<T,3> one_site_apply(Tensor<T,5> const & vlo, Tensor<T,3> const & s, Tensor<T,3> const & envr)
@@ -41,7 +42,7 @@ namespace KylinVib
         }
         Tensor<T,4> two_site_lanczos(Tensor<T,4> const & x0, size_t site, T const & dt, size_t MicroIter)
         {
-            vector<Tensor<T,4>> Vk(MicroIter,x0.shape());
+            vector<Tensor<T,4>> Vk(MicroIter,x0.shape);
             Tensor<T,5> vlo = prod<T,3,4,1>(envl_.back(),ham_[site],{1},{0});
             vlo = transpose<T,5>(vlo,{0,2,4,1,3});
             Tensor<T,5> vro = prod<T,4,3,1>(ham_[site+1],envr_.back(),{3},{1});
@@ -77,9 +78,9 @@ namespace KylinVib
             {
                 eaHm({i,i}) = exp(eaHm({i,i}));
             }
-            eaHm = prod<T,2,2,1>(Hm,eaHm);
+            eaHm = prod<T,2,2,1>(Hm,eaHm,{1},{0});
             eaHm = prod<T,2,2,1>(eaHm,conj<T,2>(Hm),{1},{1});
-            Tensor<T,3> res = Vk[0] * eaHm({0,0});
+            Tensor<T,4> res = Vk[0] * eaHm({0,0});
             for(size_t i=1;i<MicroIter;++i)
             {
                 res += Vk[i] * eaHm({i,0});
@@ -91,7 +92,7 @@ namespace KylinVib
         {
             Tensor<T,5> vlo = prod<T,3,4,1>(envl_.back(),ham_[site],{1},{0});
             vlo = transpose<T,5>(vlo,{0,2,4,1,3});
-            vector<Tensor<T,3>> Vk(MicroIter,x0.shape());
+            vector<Tensor<T,3>> Vk(MicroIter,x0.shape);
             T beta = x0.norm();
             Vk[0] = x0 / beta;
             vector<tuple<size_t,size_t,T>> HmTrips;
@@ -123,7 +124,7 @@ namespace KylinVib
             {
                 eaHm({i,i}) = exp(eaHm({i,i}));
             }
-            eaHm = prod<T,2,2,1>(Hm,eaHm);
+            eaHm = prod<T,2,2,1>(Hm,eaHm,{1},{0});
             eaHm = prod<T,2,2,1>(eaHm,conj<T,2>(Hm),{1},{1});
             Tensor<T,3> res = Vk[0] * eaHm({0,0});
             for(size_t i=1;i<MicroIter;++i)
@@ -142,27 +143,35 @@ namespace KylinVib
                 for(size_t i=0;i<ns-1;++i)
                 {
                     Tensor<T,4> s2 = prod<T,3,3,1>(state_[i],state_[i+1],{2},{0});
-                    s2 = two_site_gmres(s2,i,two_site_overlap_apply(ovl_.back(),state0_[i],state0_[i+1],ovr_.back()),eta,MicroIter);
+                    s2 = two_site_lanczos(s2,i,dt,MicroIter);
                     auto[lef,rig] = svd<T,2,2>(s2,'r',tol_, MaxBond_);
                     state_[i] = move(lef);
-                    state_[i+1] = move(rig);
                     if(i!=ns-2)
                     {
                         envl_.push_back(MPO<T>::sweep(envl_.back(),ham_[i],state_[i],state_[i],'r'));
+                        state_[i+1] = one_site_lanczos(rig,i+1,dt*-1.0,MicroIter);
                         envr_.pop_back();
+                    }
+                    else
+                    {
+                        state_[i+1] = move(rig);
                     }
                 }
                 for(size_t i=ns-1;i>0;--i)
                 {
                     Tensor<T,4> s2 = prod<T,3,3,1>(state_[i-1],state_[i],{2},{0});
-                    s2 = two_site_gmres(s2,i-1,two_site_overlap_apply(ovl_.back(),state0_[i-1],state0_[i],ovr_.back()),eta,MicroIter);
+                    s2 = two_site_lanczos(s2,i-1,dt,MicroIter);
                     auto[lef,rig] = svd<T,2,2>(s2,'l',tol_, MaxBond_);
                     state_[i] = move(rig);
-                    state_[i-1] = move(lef);
                     if(i!=1)
                     {
                         envr_.push_back(MPO<T>::sweep(envr_.back(),ham_[i],state_[i],state_[i],'l'));
+                        state_[i-1] = one_site_lanczos(lef,i-1,dt*-1.0,MicroIter);
                         envl_.pop_back();
+                    }
+                    else
+                    {
+                        state_[i-1] = move(lef);
                     }
                 }
             }
@@ -170,14 +179,5 @@ namespace KylinVib
  
         MPS<T> get_mps() const { return state_; }
         MPO<T> get_mpo() const { return ham_; }
-
-        protected:
-        MPO<T> ham_;
-        MPS<T> state_;
-        vector<MPS<T>> snaps_;
-        double tol_;
-        size_t MaxBond_;
-        vector<Tensor<T,3>> envl_;
-        vector<Tensor<T,3>> envr_;
     };
 }

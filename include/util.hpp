@@ -1,3 +1,4 @@
+#pragma once
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -107,6 +108,8 @@ using std::hash;
 using std::multiplies;
 using std::accumulate;
 using std::inner_product;
+using std::get;
+using std::map;
 
 template<size_t N> ostream & operator<<(ostream & os, array<size_t,N> const & arr)
 {

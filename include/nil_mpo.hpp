@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "dense_mps.h"
+#include "nil_mps.hpp"
 
-namespace KylinVib
+namespace Nil
 {
     template<typename T> class MPO : public vector<Tensor<T,4>>
     {
@@ -92,18 +92,18 @@ namespace KylinVib
         {
             size_t ns = this->size();
             Tensor<T,3> env({1,1,1});
-            env.ptr()[0] = 1.0;
+            env.data[0] = 1.0;
             for(size_t i=0;i<ns;++i)
             {
                 env = sweep(env,(*this)[i],s1[i],s2[i]);
             }
-            return env.ptr()[0];
+            return env[0];
         }
         MPS<T> apply_op(MPS<T> const & s, double tol = 1e-14, size_t maxdim = 1000) const
         {
             size_t ns = this->size();
             Tensor<double,3> env({1,1,1});
-            env.ptr()[0] = 1.0;
+            env.data[0] = 1.0;
             MPS<T> res(ns);
             for(size_t i=0;i<ns;++i)
             {
@@ -118,11 +118,11 @@ namespace KylinVib
                 }
                 else
                 {
-                    Tensor<T,3> lsoc({lso.shape()[0],lso.shape()[1],lso.shape()[2]});
+                    Tensor<T,3> lsoc({lso.shape[0],lso.shape[1],lso.shape[2]});
                     #pragma omp parallel for
-                    for(size_t j=0;j<lsoc.size();++j)
+                    for(size_t j=0;j<lsoc.data.size();++j)
                     {
-                        lsoc.ptr()[j] = lso.ptr()[j];
+                        lsoc[j] = lso[j];
                     }
                     res[i] = move(lsoc);
                 }
@@ -142,13 +142,13 @@ namespace KylinVib
             MPS<T> res(ns);
             for(size_t i=0;i<ns;++i)
             {
-                size_t bl = (*this)[i].shape()[0], br = (*this)[i].shape()[3],
-                d = (*this)[i].shape()[1];
+                size_t bl = (*this)[i].shape[0], br = (*this)[i].shape[3],
+                d = (*this)[i].shape[1];
                 Tensor<T,3> si({bl,d,br});
                 for(size_t j=0;j<si.data.size();++j)
                 {
                     array<size_t,3> sidx = si.make_indices(j);
-                    si.ptr()[j] = (*this)[i]({sidx[0],sidx[1],sidx[1],sidx[2]});
+                    si[j] = (*this)[i]({sidx[0],sidx[1],sidx[1],sidx[2]});
                 }
                 res[i] = si;
             }

@@ -1,5 +1,6 @@
 #pragma once
-#include "nil_mpo.h"
+#include "nil_mpo.hpp"
+#include "local.hpp"
 using namespace Nil;
 struct Lattice
 {
@@ -14,7 +15,7 @@ struct Lattice
     Lattice(const char * file_name)
     {
         size_t KTerm = 0;
-        ifstream ifs(fdump);
+        ifstream ifs(file_name);
         if(!ifs.is_open()) { cout << "Fail to open dump!" << endl; exit(1);}
         string lines,segs;
         getline(ifs,lines);
@@ -65,7 +66,7 @@ struct Lattice
             }
             tmpi *= rvals[i];
             size_t ThreadID = omp_get_thread_num();
-            if(hams[ThreadID][0].shape()[1]!=tmpi[0].shape()[1]) { hams[ThreadID] = tmpi; }
+            if(hams[ThreadID][0].shape[1]!=tmpi[0].shape[1]) { hams[ThreadID] = tmpi; }
             else { hams[ThreadID] += tmpi; }
             hams[ThreadID].canon();
         }
@@ -92,9 +93,9 @@ struct Lattice
                 tmpi[j] = to_matrix<Tensor<MKL_Complex16,4>>(types[i][j],nphysdims[j]);
             }
             MKL_Complex16 val(rvals[i],ivals[i]);
-            tmpi[0] = tmpi * val; 
+            tmpi[0] = tmpi[0] * val; 
             size_t ThreadID = omp_get_thread_num();
-            if(hams[ThreadID][0].shape()[1]!=tmpi[0].shape()[1]) { hams[ThreadID] = tmpi; }
+            if(hams[ThreadID][0].shape[1]!=tmpi[0].shape[1]) { hams[ThreadID] = tmpi; }
             else { hams[ThreadID] += tmpi; }
             hams[ThreadID].canon();
         }

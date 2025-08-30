@@ -1,11 +1,9 @@
 /* MPS class with dense tensor */
 
 #pragma once
+#include "nil_linalg.hpp"
 
-#include <map>
-#include "linalg.h"
-
-namespace KylinVib
+namespace Nil
 {
     template<typename T> class MPS : public  vector<Tensor<T,3>>
     {
@@ -142,15 +140,15 @@ namespace KylinVib
         {
             size_t ns = this->size();
             Tensor<T,2> env({1,1});
-            env.ptr()[0] = 1.0;
+            env.data[0] = 1.0;
             for(size_t i=0;i<ns;++i)
             {
                 env = sweep(env,(*this)[i],s[i]);
             }
-            return env.ptr()[0];
+            return env.data[0];
         }
         // extract dominant cfgs
-         vector<LabArr<T,2>> dominant(size_t nst) const
+        vector<LabArr<T,2>> dominant(size_t nst) const
         {
              vector<LabArr<T,2>> levs = all_levels((*this)[0]), kepts;
             kepts = truncate_levels(levs,nst);
@@ -196,12 +194,12 @@ namespace KylinVib
         } 
         static vector<LabArr<T,2>> all_levels(Tensor<T,3> const & mps)
         {
-            vector<LabArr<T,2>> res(mps.shape()[1],{mps.shape()[0],mps.shape()[2]});
+            vector<LabArr<T,2>> res(mps.shape[1],{mps.shape[0],mps.shape[2]});
             #pragma omp parallel for
             for(size_t i=0;i<mps.size();++i)
             {
                 array<size_t,3> sidx = mps.make_indices(i);
-                res[sidx[1]]({sidx[0],sidx[2]}) = mps.ptr()[i];
+                res[sidx[1]]({sidx[0],sidx[2]}) = mps[i];
             }
             size_t d = res.size();
             for(size_t i=0;i<d;++i)

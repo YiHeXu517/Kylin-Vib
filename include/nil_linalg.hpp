@@ -1,9 +1,6 @@
-/* dense tensor class */
-
 #pragma once
-
 #include "nil_tensor.hpp"
-
+#include "nil_hash.hpp"
 namespace Nil
 {
     template<typename T, size_t N>
@@ -13,7 +10,7 @@ namespace Nil
         if constexpr (is_same<T,MKL_Complex16>::value)
         {
             #pragma omp parallel for
-            for(size_t i=0;i<r.size();++i)
+            for(size_t i=0;i<r.data.size();++i)
             {
                 res.data[i] = conj(r.data[i]);
             }
@@ -45,7 +42,7 @@ namespace Nil
         } 
         Tensor<T,N> res(rsp);
         #pragma omp parallel for
-        for(size_t i=0;i<r.size();++i)
+        for(size_t i=0;i<r.data.size();++i)
         {
             array<size_t,N> idx;
             for(size_t j=0;j<N;++j)
@@ -73,7 +70,7 @@ namespace Nil
             rsp[*it] += r2.shape[*it];
         }
         Tensor<T,N> res(rsp);
-        for(size_t i=0;i<r1.size();++i)
+        for(size_t i=0;i<r1.data.size();++i)
         {
             array<size_t,N> idx;
             for(size_t j=0;j<N;++j)
@@ -82,7 +79,7 @@ namespace Nil
             }
             res(idx) = r1.data[i];
         }
-        for(size_t i=0;i<r2.size();++i)
+        for(size_t i=0;i<r2.data.size();++i)
         {
             array<size_t,N> idx;
             for(size_t j=0;j<N;++j)
@@ -103,7 +100,7 @@ namespace Nil
     char ReS = 'n')
     {
         size_t nrow = accumulate(m.shape.begin(),m.shape.begin()+R1,1,multiplies<size_t>());
-        size_t ncol = m.size() / nrow;
+        size_t ncol = m.data.size() / nrow;
         size_t ldu = min(nrow,ncol);
         Tensor<T,R1+R2> mc(m);
         Tensor<T,2> u({nrow,ldu}),vt({ldu,ncol});
@@ -184,16 +181,17 @@ namespace Nil
     Tensor<T,2> eig(Tensor<T,2> & Hm, char rep = 'r')
     {
         size_t Ns = Hm.shape[0];
+        int ifeg;
         Tensor<double,1> ega({Ns});
         Tensor<T,2> egr({Ns,Ns});
         if constexpr (is_same<T,double>::value)
         {
-            size_t ifeg = LAPACKE_dsyevd(LAPACK_ROW_MAJOR, 'V', 'U', Ns, Hm.data.data(), Ns, ega.data.data());
+            ifeg = LAPACKE_dsyevd(LAPACK_ROW_MAJOR, 'V', 'U', Ns, Hm.data.data(), Ns, ega.data.data());
             if(ifeg!=0) { cout << "Problems in eig! " << Ns << endl; exit(1);}
         }
         else if constexpr (is_same<T,MKL_Complex16>::value)
         {
-            size_t ifeg = LAPACKE_zheevd(LAPACK_ROW_MAJOR, 'V', 'U', Ns, Hm.data.data(), Ns, ega.data.data());
+            ifeg = LAPACKE_zheevd(LAPACK_ROW_MAJOR, 'V', 'U', Ns, Hm.data.data(), Ns, ega.data.data());
             if(ifeg!=0) { cout << "Problems in eig! " << Ns << endl; exit(1);}
         }
         for(size_t i=0;i<Ns;++i)
@@ -269,8 +267,8 @@ namespace Nil
         array<size_t,3> rck;
         rck[0] = accumulate(r1t.shape.begin(),r1t.shape.begin()+R1-rc,1,multiplies<size_t>());
         rck[1] = accumulate(r2t.shape.begin()+rc,r2t.shape.end(),1,multiplies<size_t>());
-        rck[2] = r1t.size() / rck[0];
-        if(rck[2] != r2t.size()/rck[1] )
+        rck[2] = r1t.data.size() / rck[0];
+        if(rck[2] != r2t.data.size()/rck[1] )
         {
             cout << "r1@r2 shapes mismatch!" << endl;
             r1t.print(1e9); r2t.print(1e9);
@@ -328,7 +326,7 @@ namespace Nil
         size_t nrow = m.shape[0];
         size_t ncol = m.shape[1];
         size_t ldu = min(nrow,ncol);
-        size_t ifsv;
+        int ifsv;
         Tensor<T,2> u({nrow,ldu}),vt({ldu,ncol}),diags({ldu,ldu});
         Tensor<double,1> s({ldu}),sp({ldu-1});
         if constexpr (is_same<T,double>::value)
