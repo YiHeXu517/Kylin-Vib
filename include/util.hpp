@@ -1,4 +1,3 @@
-#pragma once
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -16,7 +15,7 @@
 #include <iostream>
 #include <iterator>
 #include <map>
-#define MKL_INT int
+#define MKL_INT size_t
 #define MKL_Complex16 std::complex<double>
 #include <mkl.h>
 #include <numeric>
@@ -104,5 +103,46 @@ using std::atan2;
 using std::ceil;
 using std::floor;
 using std::round;
+using std::hash;
+using std::multiplies;
+using std::accumulate;
+using std::inner_product;
 
+template<size_t N> ostream & operator<<(ostream & os, array<size_t,N> const & arr)
+{
+    os << "[";
+    for(size_t i=0;i<N-1;++i)
+    {
+        os << arr[i] << ",";
+    }
+    os << arr[N-1] << "]";
+    return os;
+}
 
+struct vector_hash
+{
+    uint64_t operator()(vector<size_t> const & my_vector) const
+    {
+        hash<size_t> hasher;
+        uint64_t answer = 0;
+        for (size_t i : my_vector)
+        {
+            answer ^= hasher(i) + 0x9e3779b9 + (answer << 6) + (answer >> 2);
+        }
+        return answer;
+    }
+};
+
+template<size_t N> struct array_hash
+{
+    uint64_t operator()(array<size_t,N> const & my_arr) const
+    {
+        hash<size_t> hasher;
+        uint64_t answer = 0;
+        for (size_t i : my_arr)
+        {
+            answer ^= hasher(i) + 0x9e3779b9 + (answer << 6) + (answer >> 2);
+        }
+        return answer;
+    }
+};
